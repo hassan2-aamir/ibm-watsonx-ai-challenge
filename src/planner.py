@@ -1,5 +1,10 @@
-WATSONX_API_KEY="tF1v1VZvm8lkubHuIP9LsIHniE21BUWKczrtwJ7lNoEG"
-WATSONX_PROJECT_ID="8384c46f-b31e-4e1a-a8ef-c0decbf6cf01"
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+WATSONX_API_KEY = os.getenv("WATSONX_API_KEY")
+WATSONX_PROJECT_ID = os.getenv("WATSONX_PROJECT_ID")
 
 import requests
 import gradio as gr
@@ -9,7 +14,6 @@ MODEL_ID = "ibm/granite-3-8b-instruct"
 API_KEY = WATSONX_API_KEY
 URL = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2023-05-29"
 PROJECT_ID = WATSONX_PROJECT_ID
-ACCESS_TOKEN = "eyJraWQiOiIyMDI1MDEzMDA4NDQiLCJhbGciOiJSUzI1NiJ9.eyJpYW1faWQiOiJJQk1pZC02OTQwMDBRREVNIiwiaWQiOiJJQk1pZC02OTQwMDBRREVNIiwicmVhbG1pZCI6IklCTWlkIiwianRpIjoiNzRlZjcxMWMtOWI2Ny00ZDEyLWI2ZWEtMWE4Y2Y5MGM2MTgxIiwiaWRlbnRpZmllciI6IjY5NDAwMFFERU0iLCJnaXZlbl9uYW1lIjoiSGFzc2FuIiwiZmFtaWx5X25hbWUiOiJBYW1pciIsIm5hbWUiOiJIYXNzYW4gQWFtaXIiLCJlbWFpbCI6ImhhYW1pci5ic2NzMjNzZWVjc0BzZWVjcy5lZHUucGsiLCJzdWIiOiJoYWFtaXIuYnNjczIzc2VlY3NAc2VlY3MuZWR1LnBrIiwiYXV0aG4iOnsic3ViIjoiaGFhbWlyLmJzY3MyM3NlZWNzQHNlZWNzLmVkdS5wayIsImlhbV9pZCI6IklCTWlkLTY5NDAwMFFERU0iLCJuYW1lIjoiSGFzc2FuIEFhbWlyIiwiZ2l2ZW5fbmFtZSI6Ikhhc3NhbiIsImZhbWlseV9uYW1lIjoiQWFtaXIiLCJlbWFpbCI6ImhhYW1pci5ic2NzMjNzZWVjc0BzZWVjcy5lZHUucGsifSwiYWNjb3VudCI6eyJ2YWxpZCI6dHJ1ZSwiYnNzIjoiNzRjODEwYThiZTEyNDI1Nzg0NmMzMTBmOTRhYWRlZWMiLCJpbXNfdXNlcl9pZCI6IjEzMzA2Mzc0IiwiZnJvemVuIjp0cnVlLCJpbXMiOiIyOTY4ODM0In0sImlhdCI6MTc0MDI1MDI5NywiZXhwIjoxNzQwMjUzODk3LCJpc3MiOiJodHRwczovL2lhbS5jbG91ZC5pYm0uY29tL2lkZW50aXR5IiwiZ3JhbnRfdHlwZSI6InVybjppYm06cGFyYW1zOm9hdXRoOmdyYW50LXR5cGU6YXBpa2V5Iiwic2NvcGUiOiJpYm0gb3BlbmlkIiwiY2xpZW50X2lkIjoiZGVmYXVsdCIsImFjciI6MSwiYW1yIjpbInB3ZCJdfQ.PzHLRjEgL24If7n1kpWxHPuppmavCGR86KC9PzHx35snhxJ9ahioIBgachadLqFKANANpra6bnqhxI7bbF7MVpHEWVMTGuBUHzKc8G0_2uC4_cOR1Xp5bEEA3fFRbfLfPP6nmZwgCqHX5wEuIl3zs3zMNT8EPNy2fxTwoMPK3OVAEI7Ti4fSxtdJkQfb-rSp5IHJ_VvN6v-C0GEOW7631UU_w8bv0Ge7ze4BszTuiSLtzmOzjaYry3QSBJ5ziq9BEQdu9FvhI3R0uDcSP4TOD9rE-31bf9VLFzaFm5EJM5y3Oyd5oTD2ZFjdtacXUMhZQZsZ39bNqUO1KBfE_6wv1g"
 AUTH_URL = "https://iam.cloud.ibm.com/identity/token"
 
 
@@ -185,7 +189,7 @@ Generate the complete design plan again with the feedback provided above."""
     except requests.exceptions.RequestException as e:
         return f"Request failed: {str(e)}", history
 
-def code_project(design, feedback="", history=[]):
+def code_plan_project(design, feedback="", history=[]):
     # Get access token
     access_token = get_access_token(API_KEY)
     
@@ -288,10 +292,10 @@ with gr.Blocks() as interface:
     design_button = gr.Button("Generate Design Plan using your last generated overview")
     regenerate_design_button = gr.Button("Regenerate and improve Plan with Feedback")
 
-    code_output = gr.Textbox(label="Codes")
-    feedback_code_input = gr.Textbox(label="Feedback", lines=5, placeholder="Provide feedback to improve the codes after first generated design")
+    code_output = gr.Textbox(label="Implementation plan")
+    feedback_code_input = gr.Textbox(label="Feedback", lines=5, placeholder="Provide feedback to improve the codes after first generated plan")
     code_button = gr.Button("Generate codes using your last generated design plan")
-    regenerate_code_button = gr.Button("Regenerate and improve Codes with Feedback")
+    regenerate_code_button = gr.Button("Regenerate and improve implementation plan with Feedback")
 
 
     # Separate chat histories for each stage
@@ -304,8 +308,8 @@ with gr.Blocks() as interface:
     regenerate_button.click(create_project_overview, inputs=[title_input, description_input, feedback_input, chat_history_overview], outputs=[overview_output, chat_history_overview])
     design_button.click(design_project, inputs=[overview_output, gr.Textbox(value="", visible=False), gr.State([])], outputs=[design_output, chat_history_design])
     regenerate_design_button.click(design_project, inputs=[overview_output, feedback_design_input, chat_history_design], outputs=[design_output, chat_history_design])
-    code_button.click(code_project, inputs=[design_output, gr.Textbox(value="", visible=False), gr.State([])], outputs=[code_output, chat_history_code])
-    regenerate_code_button.click(code_project, inputs=[design_output, feedback_code_input, chat_history_code], outputs=[code_output, chat_history_code])
+    code_button.click(code_plan_project, inputs=[design_output, gr.Textbox(value="", visible=False), gr.State([])], outputs=[code_output, chat_history_code])
+    regenerate_code_button.click(code_plan_project, inputs=[design_output, feedback_code_input, chat_history_code], outputs=[code_output, chat_history_code])
 
 # Launch the interface
 if __name__ == "__main__":
