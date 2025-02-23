@@ -75,15 +75,18 @@ Please ensure the project overview is comprehensive and provides a clear underst
         prompt = f"""
 {history_text}
 
-User: {feedback}"""
+User: {feedback}
 
+Generate the complete project overview again with the feedback provided above."""
+
+    print(prompt)
     # Request payload
     payload = {
         "model_id": MODEL_ID,
         "input": prompt,
         "parameters": {
             "decoding_method": "greedy",
-            "max_new_tokens": 1024,
+            "max_new_tokens": 4096,
             "min_new_tokens": 0,
             "repetition_penalty": 1
         },
@@ -153,8 +156,11 @@ Please ensure the design plan is comprehensive and provides a clear understandin
         prompt = f"""
 {history_text}
 
-User: {feedback}"""
+User: {feedback}
 
+Generate the complete design plan again with the feedback provided above."""
+
+    print(prompt)
     # Request payload
     payload = {
         "model_id": MODEL_ID,
@@ -181,30 +187,127 @@ User: {feedback}"""
     except requests.exceptions.RequestException as e:
         return f"Request failed: {str(e)}", history
 
+def code_project(design, feedback="", history=[]):
+    # Get access token
+    access_token = get_access_token(API_KEY)
+    
+    # Headers for authentication
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    # Construct the prompt with history
+    history_text = "\n".join([f"User: {msg['user']}\nAI: {msg['ai']}" for msg in history])
+    if len(history_text) == 0:
+        prompt = f"""
+Design Plan: {design}
+
+Based on the provided design plan, please select the appropriate technology stack, describe the directory structure and file structure, and list all the modules needed for coding. The response should include the following sections:
+
+1. **Technology Stack**:
+   - Select the appropriate programming languages, frameworks, and tools for the backend, frontend, database, and other components.
+   - Justify the selection of each technology.
+
+2. **Directory Structure**:
+   - Describe the overall directory structure of the project.
+   - Include directories for the backend, frontend, database, and other components.
+
+3. **File Structure**:
+   - Describe the file structure within each directory.
+   - Include key files and their purposes, such as configuration files, source code files, and documentation files.
+
+4. **Modules Needed**:
+   - List all the modules needed for coding the project.
+   - Provide a brief description of the purpose of each module.
+
+Please ensure the response is comprehensive and provides a clear understanding of the technology stack, directory structure, file structure, and modules required to implement the design."""
+    else:
+        prompt = f"""
+{history_text}
+
+User: {feedback}
+
+Based on the provided design plan and the feedback, please select the appropriate technology stack, describe the directory structure and file structure, and list all the modules needed for coding. The response should include the following sections:
+
+1. **Technology Stack**:
+   - Select the appropriate programming languages, frameworks, and tools for the backend, frontend, database, and other components.
+   - Justify the selection of each technology.
+
+2. **Directory Structure**:
+   - Describe the overall directory structure of the project.
+   - Include directories for the backend, frontend, database, and other components.
+
+3. **File Structure**:
+   - Describe the file structure within each directory.
+   - Include key files and their purposes, such as configuration files, source code files, and documentation files.
+
+4. **Modules Needed**:
+   - List all the modules needed for coding the project.
+   - Provide a brief description of the purpose of each module.
+
+Please ensure the response is comprehensive and provides a clear understanding of the technology stack, directory structure, file structure, and modules required to implement the design."""
+
+    # Request payload
+    payload = {
+        "model_id": MODEL_ID,
+        "input": prompt,
+        "parameters": {
+            "decoding_method": "greedy",
+            "max_new_tokens": 4096,
+            "min_new_tokens": 50,
+            "repetition_penalty": 1.2
+        },
+        "project_id": PROJECT_ID
+    }
+    print(prompt)
+    try:
+        # Make API request
+        response = requests.post(URL, headers=headers, json=payload, timeout=(10, 300))
+        print(response.json())  # Debugging: Print the response
+        if response.status_code == 200:
+            result = response.json()
+            generated_text = result.get('results', [{}])[0].get('generated_text', 'No response generated')
+            history.append({"user": f"Design: {design}\n", "ai": generated_text})
+            return generated_text, history
+        else:
+            return f"Error: {response.status_code} - {response.text}", history
+    except requests.exceptions.RequestException as e:
+        return f"Request failed: {str(e)}", history
+
 # Create Gradio interface
 with gr.Blocks() as interface:
     title_input = gr.Textbox(label="Title", placeholder="Enter the title of the project")
     description_input = gr.Textbox(label="Description", lines=10, placeholder="Enter the description of the project")
     feedback_input = gr.Textbox(label="Feedback", lines=5, placeholder="Provide feedback to improve the overview after first generating initial overview")
     overview_output = gr.Textbox(label="App Overview")
-    chat_history = gr.State([])
-
     generate_button = gr.Button("Generate Overview")
     regenerate_button = gr.Button("Regenerate Overview with Feedback")
 
-
-    generate_button.click(create_project_overview, inputs=[title_input, description_input, gr.Textbox(value="", visible=False), gr.State([])], outputs=[overview_output, chat_history])
-    regenerate_button.click(create_project_overview, inputs=[title_input, description_input, feedback_input, chat_history], outputs=[overview_output, chat_history])
-
     design_output = gr.Textbox(label="Design Plan")
     feedback_design_input = gr.Textbox(label="Feedback", lines=5, placeholder="Provide feedback to improve the design plan after first generated design")
-    chat_history = gr.State([])
-
     design_button = gr.Button("Generate Design Plan using your last generated overview")
     regenerate_design_button = gr.Button("Regenerate and improve Plan with Feedback")
 
-    design_button.click(design_project, inputs=[overview_output, gr.Textbox(value="", visible=False), gr.State([])], outputs=[design_output, chat_history])
-    regenerate_design_button.click(design_project, inputs=[overview_output, feedback_design_input, chat_history], outputs=[design_output, chat_history])
+    code_output = gr.Textbox(label="Codes")
+    feedback_code_input = gr.Textbox(label="Feedback", lines=5, placeholder="Provide feedback to improve the codes after first generated design")
+    code_button = gr.Button("Generate codes using your last generated design plan")
+    regenerate_code_button = gr.Button("Regenerate and improve Codes with Feedback")
+
+
+    # Separate chat histories for each stage
+    chat_history_overview = gr.State([])
+    chat_history_design = gr.State([])
+    chat_history_code = gr.State([])
+
+
+    generate_button.click(create_project_overview, inputs=[title_input, description_input, gr.Textbox(value="", visible=False), gr.State([])], outputs=[overview_output, chat_history_overview])
+    regenerate_button.click(create_project_overview, inputs=[title_input, description_input, feedback_input, chat_history_overview], outputs=[overview_output, chat_history_overview])
+    design_button.click(design_project, inputs=[overview_output, gr.Textbox(value="", visible=False), gr.State([])], outputs=[design_output, chat_history_design])
+    regenerate_design_button.click(design_project, inputs=[overview_output, feedback_design_input, chat_history_design], outputs=[design_output, chat_history_design])
+    code_button.click(code_project, inputs=[design_output, gr.Textbox(value="", visible=False), gr.State([])], outputs=[code_output, chat_history_code])
+    regenerate_code_button.click(code_project, inputs=[design_output, feedback_code_input, chat_history_code], outputs=[code_output, chat_history_code])
 
 # Launch the interface
 if __name__ == "__main__":
