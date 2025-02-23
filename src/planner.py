@@ -3,8 +3,6 @@ WATSONX_PROJECT_ID="8384c46f-b31e-4e1a-a8ef-c0decbf6cf01"
 
 import requests
 import gradio as gr
-import json
-from datetime import datetime
 
 # Model and project settings
 MODEL_ID = "ibm/granite-3-8b-instruct"
